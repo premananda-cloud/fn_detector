@@ -35,3 +35,5 @@ logs/
 
 # Jupyter notebooks checkpoints
 .ipynb_checkpoints/
+#models
+models/
