@@ -1,0 +1,33 @@
+your_project/
+├── core/                           # Core detection modules
+│   ├── __init__.py
+│   ├── detector.py
+│   ├── engine/
+│   │   ├── __init__.py
+│   │   └── call_bert.py
+│   └── processor/
+│       ├── __init__.py
+│       ├── text_processor.py
+│       └── feature_extracter.py
+│
+├── services/                       # High-level services
+│   ├── __init__.py
+│   ├── inference.py
+│   ├── explainer.py
+│   └── orchestrator.py
+│
+├── models/                         # Model weights
+│   ├── bert/
+│   │   ├── final_model/
+│   │   ├── all_layers_epoch_0/
+│   │   └── classifier_only_epoch_0/
+│   └── roberta/
+│
+├── config/
+│   └── __init__.py
+│
+├── utils/
+│   └── __init__.py
+│
+├── requirements.txt
+└── main.py                         # Entry point
