@@ -1,241 +1,410 @@
-# Text Detection System
+# Fake News Detection System
 
-A modular, production-oriented architecture for transformer-based text detection and analysis. This system emphasizes clean separation of concerns, maintainability, and extensibility.
+A comprehensive multi-model fake news detection system using BERT, RoBERTa, and TF-IDF models with ensemble predictions and explainability.
 
-> **Note:** This repository provides the inference and orchestration framework. Model training is handled separately—see [Model Training](#model-training) below.
+## 🌟 Features
 
----
+- **Multi-Model Architecture**: Combines BERT, RoBERTa, and TF-IDF models for robust predictions
+- **Ensemble Methods**: Multiple ensemble strategies including confidence-weighted, majority vote, and adaptive methods
+- **Explainability**: Detailed explanations for predictions with text analysis and indicator detection
+- **Flexible Interface**: CLI, batch processing, and interactive modes
+- **Risk Assessment**: Automatic risk level calculation (HIGH/MEDIUM/LOW)
+- **Comprehensive Analysis**: Text features, sentiment analysis, and credibility indicators
 
-## Design Philosophy
+## 📋 Requirements
 
-This project is built around four core principles:
+- Python 3.8+
+- PyTorch 2.0+
+- Transformers 4.30+
+- See `requirements.txt` for full dependencies
 
-1. **Separation of Concerns** – Clear boundaries between preprocessing, inference, and application logic
-2. **Model Agnosticism** – Interface-level abstractions allow model swapping without system rewrites
-3. **Data Flow Transparency** – Explicit pipelines from raw input to final predictions
-4. **Research & Production Ready** – Suitable for experimentation while maintaining production-grade structure
-
-Unlike monolithic scripts, this architecture allows models, preprocessing strategies, and inference pipelines to evolve independently.
-
----
-
-## Architecture Overview
-
-### System Components
-
-**Core Layer** (`core/`)  
-The detection engine and its dependencies:
-- `detector.py` – Central detection orchestrator
-- `engine/` – Model invocation interfaces (BERT, custom models)
-- `processor/` – Text normalization and feature extraction
-
-**Services Layer** (`services/`)  
-High-level application workflows:
-- `inference.py` – End-to-end prediction pipeline
-- `explainer.py` – Model interpretability and output analysis
-- `orchestrator.py` – Multi-step workflow coordination
-
-**Configuration & Utilities**  
-- `config/` – Environment settings, hyperparameters, model paths
-- `utils/` – Shared helpers, logging, validation
-
-**Entry Point**  
-- `main.py` – CLI and programmatic interface
-
-### Data Flow
-
-```
-Raw Text Input
-    ↓
-Text Processor (normalization, tokenization)
-    ↓
-Feature Extractor (embeddings, metadata)
-    ↓
-Model Engine (BERT/transformer inference)
-    ↓
-Detector (classification, scoring)
-    ↓
-Services (interpretation, orchestration)
-    ↓
-Final Output (predictions, explanations)
-```
-
----
-
-## Model Training
-
-This repository **does not include model training code or pretrained weights**. Model development—including fine-tuning for low-resource scenarios—is maintained separately:
-
-### SPST-BERT Training Repository
-**[github.com/premananda-cloud/Bert_training_via_SPST](https://github.com/premananda-cloud/Bert_training_via_SPST)**
-
-This external repository implements **Sequential/Single-Phase Single-Task (SPST)** training optimized for:
-- Limited datasets and compute resources
-- Reproducible research workflows
-- Controlled fine-tuning experiments
-
-**Integration:** Once trained, model artifacts (checkpoints, configs) are loaded into this system via `core/engine/call_bert.py`.
-
----
-
-## Installation
+## 🚀 Installation
 
 ```bash
-# Clone repository
-git clone <your-repo-url>
-cd <your-project>
+# Clone the repository
+git clone <repository-url>
+cd fake-news-detection
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure model paths
-# Edit config/settings.yaml to point to your trained model
+# Ensure model files are in place
+# models/bert/final_model/
+# models/roberta/final_model/
+# models/tf_idf/fake_news_classifier.joblib
+# models/tf_idf/tfidf_model.joblib
 ```
 
----
+## 📁 Project Structure
 
-## Usage
-
-### Basic Inference
-
-```python
-from services.inference import InferencePipeline
-
-pipeline = InferencePipeline(model_path="path/to/model")
-result = pipeline.predict("Sample text for detection")
-print(result)
+```
+├── main.py                          # Main entry point with CLI
+├── services/
+│   ├── inference.py                 # Model inference for all three models
+│   ├── orchestrator.py              # Ensemble prediction logic
+│   └── explainer.py                 # Explanation and interpretability
+├── models/
+│   ├── bert/final_model/           # BERT model files
+│   ├── roberta/final_model/        # RoBERTa model files
+│   └── tf_idf/                     # TF-IDF model and vectorizer
+└── requirements.txt                 # Python dependencies
 ```
 
-### With Explanations
+## 💻 Usage
 
-```python
-from services.explainer import Explainer
+### Quick Start (No Arguments Required!)
 
-explainer = Explainer(pipeline)
-explanation = explainer.interpret(result)
-```
-
-### Command Line
+The easiest way to get started:
 
 ```bash
-python main.py --input sample.txt --output predictions.json
+# Run the demo with sample texts
+python demo.py --demo
+
+# Or start interactive mode (default)
+python demo.py
+
+# Or use the menu-driven interface
+bash run.sh
 ```
 
----
+### Command Line Interface (Full Features)
 
-## Configuration
-
-All system behavior is controlled through `config/`:
-
-- **Model Settings** – Path to trained model, tokenizer configuration
-- **Processing Parameters** – Max sequence length, preprocessing rules
-- **Inference Options** – Batch size, confidence thresholds
-- **Logging & Output** – Verbosity, export formats
-
-Example `config/settings.yaml`:
-
-```yaml
-model:
-  path: "models/spst-bert-detector"
-  device: "cuda"
-  
-preprocessing:
-  max_length: 512
-  lowercase: true
-  
-inference:
-  batch_size: 32
-  threshold: 0.7
+#### Analyze a single text:
+```bash
+python main.py --text "Scientists discover groundbreaking cure for cancer"
 ```
 
+#### Analyze text from file:
+```bash
+python main.py --file article.txt
+```
+
+#### Batch processing:
+```bash
+# Create a file with one text per line
+python main.py --batch news_articles.txt
+```
+
+#### Interactive mode:
+```bash
+python main.py --interactive
+```
+
+### Advanced Options
+
+#### Choose specific models:
+```bash
+# Use only BERT and RoBERTa
+python main.py --text "News text..." --no-tfidf
+
+# Use only TF-IDF
+python main.py --text "News text..." --no-bert --no-roberta
+```
+
+#### Select ensemble method:
+```bash
+python main.py --text "News..." --ensemble majority_vote
+# Available: majority_vote, weighted_average, unanimous, confidence_weighted, adaptive
+```
+
+#### Output options:
+```bash
+# Simple output
+python main.py --text "News..." --simple
+
+# No explanations
+python main.py --text "News..." --no-explain
+
+# Quiet mode
+python main.py --text "News..." --quiet
+```
+
+### Python API
+
+```python
+from main import FakeNewsDetector
+
+# Initialize detector
+detector = FakeNewsDetector(
+    use_bert=True,
+    use_roberta=True,
+    use_tfidf=True,
+    ensemble_method='confidence_weighted'
+)
+
+# Analyze text
+text = "Breaking news: Scientists discover miracle cure!"
+result = detector.predict(text, explain=True)
+
+# Print formatted result
+detector.print_result(result, detailed=True)
+
+# Access prediction data
+print(f"Prediction: {result['final_prediction']}")
+print(f"Confidence: {result['confidence']:.2%}")
+print(f"Risk Level: {result['risk_level']}")
+```
+
+### Using Individual Components
+
+#### Inference Service
+```python
+from services.inference import MultiModelInference
+
+# Initialize inference
+inference = MultiModelInference(
+    use_bert=True,
+    use_roberta=True,
+    use_tfidf=True
+)
+
+# Get predictions from all models
+predictions = inference.predict_all(text)
+
+# Access individual model predictions
+print(predictions['BERT'])
+print(predictions['RoBERTa'])
+print(predictions['TF-IDF'])
+```
+
+#### Orchestrator Service
+```python
+from services.orchestrator import PredictionOrchestrator, EnsembleMethod
+
+# Initialize orchestrator
+orchestrator = PredictionOrchestrator(
+    ensemble_method=EnsembleMethod.CONFIDENCE_WEIGHTED
+)
+
+# Get ensemble prediction
+ensemble_result = orchestrator.ensemble_predict(predictions)
+
+# Print interpretation
+interpretation = orchestrator.interpret_results(ensemble_result)
+print(interpretation)
+```
+
+#### Explainer Service
+```python
+from services.explainer import PredictionExplainer
+
+# Initialize explainer
+explainer = PredictionExplainer()
+
+# Get explanation for a prediction
+explanation = explainer.explain_prediction(
+    text=text,
+    prediction='FAKE',
+    confidence=0.92,
+    model_name='BERT'
+)
+
+# Get ensemble explanation
+ensemble_explanation = explainer.explain_ensemble(
+    text=text,
+    individual_predictions=predictions,
+    ensemble_result=ensemble_result
+)
+```
+
+## 🎯 Ensemble Methods
+
+### 1. Confidence Weighted (Default)
+Weights predictions by their confidence scores. Best for balanced results.
+
+### 2. Majority Vote
+Simple voting system. Each model gets one vote.
+
+### 3. Weighted Average
+Uses predefined model weights. Customize with `model_weights` parameter.
+
+### 4. Unanimous
+Requires all models to agree. Returns UNCERTAIN if they disagree.
+
+### 5. Adaptive
+Chooses strategy based on model agreement level.
+
+## 📊 Output Format
+
+```
+======================================================================
+FAKE NEWS DETECTION RESULT
+======================================================================
+
+🚫 PREDICTION: FAKE
+📊 Confidence: 89.23%
+🤝 Consensus: 85.00%
+⚠️  Risk Level: HIGH
+
+----------------------------------------------------------------------
+INDIVIDUAL MODEL PREDICTIONS
+----------------------------------------------------------------------
+
+BERT:
+  Prediction: FAKE
+  Confidence: 89.50%
+  Probabilities: REAL=10.50%, FAKE=89.50%
+
+RoBERTa:
+  Prediction: FAKE
+  Confidence: 92.00%
+  Probabilities: REAL=8.00%, FAKE=92.00%
+
+TF-IDF:
+  Prediction: REAL
+  Confidence: 65.00%
+  Probabilities: REAL=65.00%, FAKE=35.00%
+
+----------------------------------------------------------------------
+KEY FINDINGS
+----------------------------------------------------------------------
+  • ⚠️  Models disagree: 2 predict FAKE, 1 predict REAL
+  • ✓ High average confidence: 82.2%
+  • ⚠️  Multiple fake news indicators found (5 total)
+
+----------------------------------------------------------------------
+RECOMMENDATION
+----------------------------------------------------------------------
+⛔ This content is likely FAKE NEWS. Do NOT share or trust this information.
+======================================================================
+```
+
+## 🔍 Text Analysis Features
+
+The explainer analyzes:
+- **Text Features**: Word count, sentence structure, capitalization patterns
+- **Fake Indicators**: Clickbait phrases, emotional language, unreliable sources
+- **Credibility Indicators**: Source attribution, balanced language, specific details
+- **Readability**: Complexity score and reading level
+- **Sentiment**: Positive/negative emotional content
+
+## 🎨 Risk Levels
+
+- **HIGH**: Strong indication of fake news or low confidence in authenticity
+- **MEDIUM**: Moderate confidence, verification recommended
+- **LOW**: High confidence in assessment
+- **UNKNOWN**: Unable to determine (errors or insufficient data)
+
+## 🛠️ Customization
+
+### Adjust Model Weights
+```python
+custom_weights = {
+    'BERT': 0.3,
+    'RoBERTa': 0.5,
+    'TF-IDF': 0.2
+}
+
+orchestrator = PredictionOrchestrator(
+    ensemble_method=EnsembleMethod.WEIGHTED_AVERAGE,
+    model_weights=custom_weights
+)
+```
+
+### Add Custom Indicators
+```python
+explainer = PredictionExplainer()
+
+# Add custom fake news indicators
+explainer.fake_indicators['custom'] = [
+    'phrase1', 'phrase2', 'phrase3'
+]
+
+# Add custom credibility indicators
+explainer.credibility_indicators['custom'] = [
+    'verified by', 'confirmed by', 'according to experts'
+]
+```
+
+## 📈 Performance Tips
+
+1. **GPU Acceleration**: Models automatically use GPU if available
+2. **Batch Processing**: Use batch mode for multiple texts to improve efficiency
+3. **Model Selection**: Disable unused models to reduce memory usage
+4. **Simple Output**: Use `--simple` flag for faster processing
+
+## 🐛 Troubleshooting
+
+### Model Loading Errors
+```bash
+# Ensure model files are in correct locations
+ls models/bert/final_model/
+ls models/roberta/final_model/
+ls models/tf_idf/
+```
+
+### Memory Issues
+```bash
+# Use fewer models
+python main.py --text "..." --no-bert
+
+# Or process in smaller batches
+```
+
+### CUDA Errors
+```bash
+# Force CPU mode if GPU issues occur
+export CUDA_VISIBLE_DEVICES=""
+```
+
+## 📝 Examples
+
+### Example 1: Quick Check
+```bash
+python main.py -t "Scientists announce breakthrough in renewable energy" -s
+```
+
+### Example 2: Detailed Analysis
+```bash
+python main.py -f suspicious_article.txt -e confidence_weighted
+```
+
+### Example 3: Batch Analysis
+```bash
+# Create file: news_batch.txt with one article per line
+python main.py -b news_batch.txt --no-explain
+```
+
+### Example 4: Python Script
+```python
+from main import FakeNewsDetector
+
+detector = FakeNewsDetector(verbose=False)
+
+articles = [
+    "Breaking: Aliens land in Times Square!",
+    "Study shows effectiveness of new vaccine",
+    "You won't believe this shocking secret!"
+]
+
+for article in articles:
+    result = detector.predict(article, explain=False)
+    print(f"{result['final_prediction']}: {article[:50]}...")
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Areas for improvement:
+- Additional ensemble methods
+- More sophisticated text analysis
+- Model fine-tuning utilities
+- Web interface
+- API endpoint
+
+## 📄 License
+
+See LICENSE.md for details.
+
+## 🙏 Acknowledgments
+
+- BERT: Google Research
+- RoBERTa: Facebook AI
+- Transformers library: Hugging Face
+
+## 📧 Contact
+
+For questions or issues, please open a GitHub issue.
+
 ---
 
-## Extending the System
-
-### Adding a New Model
-
-1. Implement model interface in `core/engine/`
-2. Register in detector configuration
-3. Update `services/inference.py` if needed
-
-### Custom Preprocessing
-
-1. Extend `processor/text_processor.py`
-2. Add feature extractors in `processor/feature_extracter.py`
-3. Update pipeline configuration
-
-### New Service Workflows
-
-Create new modules in `services/` following existing patterns for inference and explanation.
-
----
-
-## Intended Use Cases
-
-- **Research Prototypes** – Rapid experimentation with new models or architectures
-- **Evaluation Frameworks** – Systematic testing of transformer-based detectors
-- **Integration Testing** – Validating externally trained models in realistic workflows
-- **Production Foundation** – Starting point for deployment (requires additional hardening)
-
----
-
-## Important Notes
-
-- This system intentionally separates inference from training to maintain clean abstractions
-- Users are responsible for validating models before deployment
-- No pretrained weights are included—bring your own trained models
-- All architectural decisions prioritize clarity and reproducibility over convenience
-
----
-
-## Requirements
-
-See `requirements.txt` for full dependency list. Key dependencies:
-- PyTorch ≥ 2.0
-- Transformers ≥ 4.30
-- NumPy, pandas
-
----
-
-## License
-
-MIT License
-
-Copyright (c) 2025   Mayanglambam Premananda Singh
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
----
-
-## Contributing
-
-Contributions are welcome. Please:
-1. Follow existing architectural patterns
-2. Add tests for new functionality
-3. Update documentation accordingly
-
----
-
-## Contact
-
-For questions or collaboration inquiries, please open an issue on this repository.
-
----
-
-**Note:** This is a research and development framework. Ensure proper validation and testing before deploying in production environments.
+**Note**: This system is for educational and research purposes. Always verify important information from multiple trusted sources.

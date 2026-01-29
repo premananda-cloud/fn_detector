@@ -1,430 +1,375 @@
 """
-Inference Service
-Handles model inference, batch predictions, and result formatting
+Inference Service for Fake News Detection
+Handles predictions from BERT, RoBERTa, and TF-IDF models
 """
 
-import os
-import sys
-import logging
-from typing import Dict, List, Union, Optional, Tuple
-import time
-from datetime import datetime
+import torch
+import joblib
 import numpy as np
+from typing import Dict, List, Optional, Tuple
+from pathlib import Path
+from transformers import (
+    BertTokenizer, 
+    BertForSequenceClassification,
+    RobertaTokenizer, 
+    RobertaForSequenceClassification
+)
+import warnings
+warnings.filterwarnings('ignore')
 
-# Add project root to path if needed
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
-from core.detector import AITextDetector
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-class InferenceService:
-    """
-    Service for running inference on texts to detect AI generation
-    Handles single and batch predictions with caching and optimization
-    """
+class ModelInference:
+    """Base class for model inference"""
     
-    def __init__(
-        self,
-        model_path: str = "models/bert/final_model",
-        device: str = "cpu",
-        confidence_threshold: float = 0.5,
-        batch_size: int = 8,
-        enable_cache: bool = True,
-        max_cache_size: int = 1000
-    ):
+    def __init__(self, model_path: str):
+        self.model_path = Path(model_path)
+        self.model = None
+        self.tokenizer = None
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    def predict(self, text: str) -> Dict:
         """
-        Initialize inference service
+        Make prediction on input text
+        Returns: Dictionary with prediction, confidence, and probabilities
+        """
+        raise NotImplementedError("Subclasses must implement predict method")
+
+
+class BERTInference(ModelInference):
+    """BERT model inference"""
+    
+    def __init__(self, model_path: str = "models/bert/final_model"):
+        super().__init__(model_path)
+        self.load_model()
+    
+    def load_model(self):
+        """Load BERT model and tokenizer"""
+        try:
+            print(f"Loading BERT model from {self.model_path}...")
+            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            self.model = BertForSequenceClassification.from_pretrained(
+                self.model_path,
+                num_labels=2
+            )
+            self.model.to(self.device)
+            self.model.eval()
+            print("BERT model loaded successfully!")
+        except Exception as e:
+            print(f"Error loading BERT model: {e}")
+            raise
+    
+    def predict(self, text: str, max_length: int = 512) -> Dict:
+        """
+        Predict using BERT model
         
         Args:
-            model_path: Path to the trained model
-            device: Device for inference ('cpu' or 'cuda')
-            confidence_threshold: Classification threshold
-            batch_size: Batch size for processing
-            enable_cache: Enable result caching
-            max_cache_size: Maximum cache size
-        """
-        self.model_path = model_path
-        self.device = device
-        self.confidence_threshold = confidence_threshold
-        self.batch_size = batch_size
-        self.enable_cache = enable_cache
-        self.max_cache_size = max_cache_size
-        
-        # Initialize detector
-        logger.info("Initializing inference service...")
-        self.detector = AITextDetector(
-            model_path=model_path,
-            device=device,
-            confidence_threshold=confidence_threshold,
-            batch_size=batch_size
-        )
-        
-        # Cache for storing results
-        self.cache = {} if enable_cache else None
-        
-        # Statistics
-        self.stats = {
-            'total_inferences': 0,
-            'cache_hits': 0,
-            'cache_misses': 0,
-            'total_texts_processed': 0,
-            'avg_inference_time': 0,
-            'inference_times': []
-        }
-        
-        logger.info("✓ Inference service initialized")
-    
-    def predict_single(
-        self,
-        text: str,
-        return_probabilities: bool = True,
-        return_features: bool = False,
-        use_cache: bool = True
-    ) -> Dict:
-        """
-        Predict if a single text is AI-generated
-        
-        Args:
-            text: Input text
-            return_probabilities: Include probability scores
-            return_features: Include extracted features
-            use_cache: Use cached results if available
+            text: Input text to classify
+            max_length: Maximum sequence length
             
         Returns:
-            Prediction result dictionary
+            Dictionary containing prediction results
         """
-        if not text or not text.strip():
-            raise ValueError("Text cannot be empty")
-        
-        # Check cache
-        if use_cache and self.enable_cache:
-            cache_key = self._get_cache_key(text)
-            if cache_key in self.cache:
-                self.stats['cache_hits'] += 1
-                logger.debug("Cache hit for text")
-                return self.cache[cache_key]
-            self.stats['cache_misses'] += 1
-        
-        # Run inference
-        start_time = time.time()
-        
-        result = self.detector.detect(
-            text=text,
-            return_probabilities=return_probabilities,
-            return_features=return_features
-        )
-        
-        inference_time = time.time() - start_time
-        
-        # Add metadata
-        result['inference_time'] = inference_time
-        result['timestamp'] = datetime.now().isoformat()
-        result['model_path'] = self.model_path
-        
-        # Update statistics
-        self._update_stats(inference_time)
-        
-        # Cache result
-        if use_cache and self.enable_cache:
-            self._cache_result(text, result)
-        
-        return result
-    
-    def predict_batch(
-        self,
-        texts: List[str],
-        return_probabilities: bool = True,
-        return_features: bool = False,
-        show_progress: bool = False
-    ) -> List[Dict]:
-        """
-        Predict for multiple texts
-        
-        Args:
-            texts: List of input texts
-            return_probabilities: Include probability scores
-            return_features: Include extracted features
-            show_progress: Show progress during processing
-            
-        Returns:
-            List of prediction results
-        """
-        if not texts:
-            raise ValueError("Text list cannot be empty")
-        
-        logger.info(f"Processing batch of {len(texts)} texts")
-        
-        start_time = time.time()
-        
-        # Check cache for each text
-        results = []
-        texts_to_process = []
-        text_indices = []
-        
-        for i, text in enumerate(texts):
-            if self.enable_cache:
-                cache_key = self._get_cache_key(text)
-                if cache_key in self.cache:
-                    results.append((i, self.cache[cache_key]))
-                    self.stats['cache_hits'] += 1
-                    continue
-            
-            texts_to_process.append(text)
-            text_indices.append(i)
-            self.stats['cache_misses'] += 1
-        
-        # Process uncached texts
-        if texts_to_process:
-            new_results = self.detector.detect_batch(
-                texts_to_process,
-                return_probabilities=return_probabilities
+        try:
+            # Tokenize input
+            inputs = self.tokenizer(
+                text,
+                return_tensors="pt",
+                max_length=max_length,
+                padding="max_length",
+                truncation=True
             )
             
-            # Add metadata and cache
-            for i, (text_idx, result) in enumerate(zip(text_indices, new_results)):
-                result['inference_time'] = (time.time() - start_time) / len(texts_to_process)
-                result['timestamp'] = datetime.now().isoformat()
-                result['model_path'] = self.model_path
-                
-                results.append((text_idx, result))
-                
-                # Cache result
-                if self.enable_cache:
-                    self._cache_result(texts_to_process[i], result)
-        
-        # Sort by original index
-        results.sort(key=lambda x: x[0])
-        final_results = [r[1] for r in results]
-        
-        # Update statistics
-        total_time = time.time() - start_time
-        self.stats['total_texts_processed'] += len(texts)
-        
-        logger.info(f"Batch processing completed in {total_time:.2f}s")
-        
-        return final_results
+            # Move to device
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            # Get prediction
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                logits = outputs.logits
+                probabilities = torch.softmax(logits, dim=1)
+                prediction = torch.argmax(probabilities, dim=1).item()
+                confidence = probabilities[0][prediction].item()
+            
+            return {
+                'model': 'BERT',
+                'prediction': 'FAKE' if prediction == 1 else 'REAL',
+                'prediction_label': prediction,
+                'confidence': confidence,
+                'probabilities': {
+                    'real': probabilities[0][0].item(),
+                    'fake': probabilities[0][1].item()
+                }
+            }
+        except Exception as e:
+            print(f"Error in BERT prediction: {e}")
+            return {
+                'model': 'BERT',
+                'prediction': 'ERROR',
+                'confidence': 0.0,
+                'error': str(e)
+            }
+
+
+class RoBERTaInference(ModelInference):
+    """RoBERTa model inference"""
     
-    def predict_with_confidence_analysis(
-        self,
-        text: str
-    ) -> Dict:
+    def __init__(self, model_path: str = "models/roberta/final_model"):
+        super().__init__(model_path)
+        self.load_model()
+    
+    def load_model(self):
+        """Load RoBERTa model and tokenizer"""
+        try:
+            print(f"Loading RoBERTa model from {self.model_path}...")
+            self.tokenizer = RobertaTokenizer.from_pretrained(self.model_path)
+            self.model = RobertaForSequenceClassification.from_pretrained(
+                self.model_path,
+                num_labels=2
+            )
+            self.model.to(self.device)
+            self.model.eval()
+            print("RoBERTa model loaded successfully!")
+        except Exception as e:
+            print(f"Error loading RoBERTa model: {e}")
+            raise
+    
+    def predict(self, text: str, max_length: int = 512) -> Dict:
         """
-        Predict with detailed confidence analysis
+        Predict using RoBERTa model
         
         Args:
-            text: Input text
+            text: Input text to classify
+            max_length: Maximum sequence length
             
         Returns:
-            Detailed prediction result with confidence breakdown
+            Dictionary containing prediction results
         """
-        result = self.predict_single(
-            text,
-            return_probabilities=True,
-            return_features=True
-        )
-        
-        # Add confidence analysis
-        confidence_analysis = self._analyze_confidence(result)
-        result['confidence_analysis'] = confidence_analysis
-        
-        return result
+        try:
+            # Tokenize input
+            inputs = self.tokenizer(
+                text,
+                return_tensors="pt",
+                max_length=max_length,
+                padding="max_length",
+                truncation=True
+            )
+            
+            # Move to device
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            
+            # Get prediction
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                logits = outputs.logits
+                probabilities = torch.softmax(logits, dim=1)
+                prediction = torch.argmax(probabilities, dim=1).item()
+                confidence = probabilities[0][prediction].item()
+            
+            return {
+                'model': 'RoBERTa',
+                'prediction': 'FAKE' if prediction == 1 else 'REAL',
+                'prediction_label': prediction,
+                'confidence': confidence,
+                'probabilities': {
+                    'real': probabilities[0][0].item(),
+                    'fake': probabilities[0][1].item()
+                }
+            }
+        except Exception as e:
+            print(f"Error in RoBERTa prediction: {e}")
+            return {
+                'model': 'RoBERTa',
+                'prediction': 'ERROR',
+                'confidence': 0.0,
+                'error': str(e)
+            }
+
+
+class TFIDFInference(ModelInference):
+    """TF-IDF + ML model inference"""
     
-    def _analyze_confidence(self, result: Dict) -> Dict:
+    def __init__(self, 
+                 model_path: str = "models/tf_idf/fake_news_classifier.joblib",
+                 vectorizer_path: str = "models/tf_idf/tfidf_model.joblib"):
+        super().__init__(model_path)
+        self.vectorizer_path = Path(vectorizer_path)
+        self.vectorizer = None
+        self.load_model()
+    
+    def load_model(self):
+        """Load TF-IDF vectorizer and classifier model"""
+        try:
+            print(f"Loading TF-IDF model from {self.model_path}...")
+            self.model = joblib.load(self.model_path)
+            self.vectorizer = joblib.load(self.vectorizer_path)
+            print("TF-IDF model loaded successfully!")
+        except Exception as e:
+            print(f"Error loading TF-IDF model: {e}")
+            raise
+    
+    def predict(self, text: str) -> Dict:
         """
-        Analyze prediction confidence
+        Predict using TF-IDF + ML model
         
         Args:
-            result: Prediction result
+            text: Input text to classify
             
         Returns:
-            Confidence analysis
+            Dictionary containing prediction results
         """
-        probability = result['confidence']
-        
-        # Determine confidence level
-        if probability >= 0.9 or probability <= 0.1:
-            level = "Very High"
-            certainty = "Highly Certain"
-        elif probability >= 0.75 or probability <= 0.25:
-            level = "High"
-            certainty = "Certain"
-        elif probability >= 0.6 or probability <= 0.4:
-            level = "Moderate"
-            certainty = "Moderately Certain"
-        else:
-            level = "Low"
-            certainty = "Uncertain"
-        
-        # Distance from threshold
-        distance_from_threshold = abs(probability - self.confidence_threshold)
-        
-        return {
-            'level': level,
-            'certainty': certainty,
-            'distance_from_threshold': distance_from_threshold,
-            'requires_review': distance_from_threshold < 0.1,
-            'recommendation': self._get_recommendation(probability, distance_from_threshold)
-        }
+        try:
+            # Vectorize input
+            text_vectorized = self.vectorizer.transform([text])
+            
+            # Get prediction
+            prediction = self.model.predict(text_vectorized)[0]
+            
+            # Get probabilities if available
+            if hasattr(self.model, 'predict_proba'):
+                probabilities = self.model.predict_proba(text_vectorized)[0]
+                confidence = probabilities[prediction]
+            else:
+                # For models without probability estimates
+                probabilities = [0.5, 0.5]
+                confidence = 0.5
+            
+            return {
+                'model': 'TF-IDF',
+                'prediction': 'FAKE' if prediction == 1 else 'REAL',
+                'prediction_label': int(prediction),
+                'confidence': float(confidence),
+                'probabilities': {
+                    'real': float(probabilities[0]),
+                    'fake': float(probabilities[1])
+                }
+            }
+        except Exception as e:
+            print(f"Error in TF-IDF prediction: {e}")
+            return {
+                'model': 'TF-IDF',
+                'prediction': 'ERROR',
+                'confidence': 0.0,
+                'error': str(e)
+            }
+
+
+class MultiModelInference:
+    """Handles inference from all three models"""
     
-    def _get_recommendation(self, probability: float, distance: float) -> str:
-        """Get recommendation based on prediction"""
-        if distance < 0.1:
-            return "Borderline case - manual review recommended"
-        elif probability >= 0.8:
-            return "High confidence AI-generated text"
-        elif probability <= 0.2:
-            return "High confidence human-written text"
-        elif probability >= 0.6:
-            return "Likely AI-generated"
-        elif probability <= 0.4:
-            return "Likely human-written"
-        else:
-            return "Uncertain - additional analysis recommended"
-    
-    def _get_cache_key(self, text: str) -> str:
-        """Generate cache key for text"""
-        # Use hash of text as key
-        return str(hash(text))
-    
-    def _cache_result(self, text: str, result: Dict):
-        """Cache inference result"""
-        if not self.enable_cache:
-            return
-        
-        cache_key = self._get_cache_key(text)
-        
-        # Manage cache size
-        if len(self.cache) >= self.max_cache_size:
-            # Remove oldest entry (simple FIFO)
-            oldest_key = next(iter(self.cache))
-            del self.cache[oldest_key]
-        
-        self.cache[cache_key] = result
-    
-    def _update_stats(self, inference_time: float):
-        """Update inference statistics"""
-        self.stats['total_inferences'] += 1
-        self.stats['inference_times'].append(inference_time)
-        
-        # Keep only last 1000 times for average
-        if len(self.stats['inference_times']) > 1000:
-            self.stats['inference_times'] = self.stats['inference_times'][-1000:]
-        
-        self.stats['avg_inference_time'] = np.mean(self.stats['inference_times'])
-    
-    def get_statistics(self) -> Dict:
+    def __init__(self, 
+                 use_bert: bool = True,
+                 use_roberta: bool = True,
+                 use_tfidf: bool = True):
         """
-        Get inference statistics
-        
-        Returns:
-            Statistics dictionary
-        """
-        cache_hit_rate = (
-            self.stats['cache_hits'] / 
-            (self.stats['cache_hits'] + self.stats['cache_misses'])
-            if (self.stats['cache_hits'] + self.stats['cache_misses']) > 0
-            else 0
-        )
-        
-        return {
-            'total_inferences': self.stats['total_inferences'],
-            'total_texts_processed': self.stats['total_texts_processed'],
-            'cache_hits': self.stats['cache_hits'],
-            'cache_misses': self.stats['cache_misses'],
-            'cache_hit_rate': cache_hit_rate,
-            'cache_size': len(self.cache) if self.cache else 0,
-            'avg_inference_time': self.stats['avg_inference_time'],
-            'model_info': self.detector.get_model_info()
-        }
-    
-    def clear_cache(self):
-        """Clear the result cache"""
-        if self.cache:
-            self.cache.clear()
-            logger.info("Cache cleared")
-    
-    def update_threshold(self, new_threshold: float):
-        """
-        Update confidence threshold
+        Initialize multi-model inference
         
         Args:
-            new_threshold: New threshold value
+            use_bert: Whether to use BERT model
+            use_roberta: Whether to use RoBERTa model
+            use_tfidf: Whether to use TF-IDF model
         """
-        self.detector.update_threshold(new_threshold)
-        self.confidence_threshold = new_threshold
-        # Clear cache as results may change
-        self.clear_cache()
-        logger.info(f"Threshold updated to {new_threshold}, cache cleared")
+        self.models = {}
+        
+        # Load models based on flags
+        if use_bert:
+            try:
+                self.models['BERT'] = BERTInference()
+            except Exception as e:
+                print(f"Could not load BERT model: {e}")
+        
+        if use_roberta:
+            try:
+                self.models['RoBERTa'] = RoBERTaInference()
+            except Exception as e:
+                print(f"Could not load RoBERTa model: {e}")
+        
+        if use_tfidf:
+            try:
+                self.models['TF-IDF'] = TFIDFInference()
+            except Exception as e:
+                print(f"Could not load TF-IDF model: {e}")
+        
+        if not self.models:
+            raise ValueError("No models could be loaded!")
+        
+        print(f"\nSuccessfully loaded {len(self.models)} model(s): {list(self.models.keys())}")
     
-    def warm_up(self, num_samples: int = 5):
+    def predict_all(self, text: str) -> Dict[str, Dict]:
         """
-        Warm up the model with sample predictions
+        Get predictions from all loaded models
         
         Args:
-            num_samples: Number of warm-up samples
-        """
-        logger.info("Warming up model...")
-        sample_text = "This is a sample text for warming up the model."
-        
-        for _ in range(num_samples):
-            self.predict_single(sample_text, use_cache=False)
-        
-        logger.info("✓ Model warm-up complete")
-    
-    def benchmark(self, texts: List[str]) -> Dict:
-        """
-        Benchmark inference performance
-        
-        Args:
-            texts: Test texts
+            text: Input text to classify
             
         Returns:
-            Benchmark results
+            Dictionary with predictions from each model
         """
-        logger.info(f"Benchmarking with {len(texts)} texts...")
+        predictions = {}
         
-        # Single inference benchmark
-        start_time = time.time()
-        for text in texts:
-            self.predict_single(text, use_cache=False)
-        single_time = time.time() - start_time
+        for model_name, model in self.models.items():
+            print(f"\nRunning {model_name} prediction...")
+            predictions[model_name] = model.predict(text)
         
-        # Batch inference benchmark
-        start_time = time.time()
-        self.predict_batch(texts)
-        batch_time = time.time() - start_time
+        return predictions
+    
+    def predict_batch(self, texts: List[str]) -> List[Dict[str, Dict]]:
+        """
+        Get predictions for multiple texts
         
-        return {
-            'num_texts': len(texts),
-            'single_inference_total_time': single_time,
-            'single_inference_avg_time': single_time / len(texts),
-            'batch_inference_total_time': batch_time,
-            'batch_inference_avg_time': batch_time / len(texts),
-            'speedup_factor': single_time / batch_time if batch_time > 0 else 0
-        }
+        Args:
+            texts: List of input texts to classify
+            
+        Returns:
+            List of prediction dictionaries
+        """
+        results = []
+        
+        for i, text in enumerate(texts):
+            print(f"\n{'='*50}")
+            print(f"Processing text {i+1}/{len(texts)}")
+            print(f"{'='*50}")
+            results.append(self.predict_all(text))
+        
+        return results
 
 
 if __name__ == "__main__":
-    # Example usage
-    service = InferenceService(
-        model_path="models/bert/final_model",
-        device="cpu",
-        confidence_threshold=0.5
-    )
+    # Test the inference system
+    print("="*70)
+    print("Testing Multi-Model Inference System")
+    print("="*70)
     
-    # Warm up
-    service.warm_up()
+    # Initialize inference system
+    try:
+        inference = MultiModelInference(
+            use_bert=True,
+            use_roberta=True,
+            use_tfidf=True
+        )
+    except Exception as e:
+        print(f"Error initializing inference system: {e}")
+        exit(1)
     
-    # Single prediction
-    text = "Artificial intelligence has revolutionized many industries."
-    result = service.predict_single(text)
+    # Test texts
+    test_texts = [
+        "Scientists discover groundbreaking cure for cancer using AI technology.",
+        "BREAKING: Aliens have landed in New York City, government confirms!"
+    ]
     
-    print("Prediction Result:")
-    print(f"Is AI Generated: {result['is_ai_generated']}")
-    print(f"Confidence: {result['confidence']:.2%}")
-    print(f"Inference Time: {result['inference_time']:.4f}s")
+    # Run predictions
+    for i, text in enumerate(test_texts, 1):
+        print(f"\n{'='*70}")
+        print(f"Test Case {i}")
+        print(f"{'='*70}")
+        print(f"Text: {text[:100]}...")
+        
+        predictions = inference.predict_all(text)
+        
+        print("\nPredictions:")
+        for model_name, result in predictions.items():
+            print(f"\n{model_name}:")
+            print(f"  Prediction: {result.get('prediction', 'N/A')}")
+            print(f"  Confidence: {result.get('confidence', 0):.4f}")
+            if 'probabilities' in result:
+                print(f"  Real: {result['probabilities']['real']:.4f}")
+                print(f"  Fake: {result['probabilities']['fake']:.4f}")

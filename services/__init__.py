@@ -1,16 +1,33 @@
 """
-Services Module
-Provides inference, explanation, and orchestration services for AI text detection
+Services package for Fake News Detection System
 """
 
-from inference import InferenceService
-from explainer import ExplainerService
-from orchestrator import DetectionOrchestrator
+from .inference import (
+    MultiModelInference,
+    BERTInference,
+    RoBERTaInference,
+    TFIDFInference
+)
+
+from .orchestrator import (
+    PredictionOrchestrator,
+    EnsembleMethod,
+    EnsembleResult
+)
+
+from .explainer import (
+    PredictionExplainer
+)
 
 __all__ = [
-    'InferenceService',
-    'ExplainerService',
-    'DetectionOrchestrator'
+    'MultiModelInference',
+    'BERTInference',
+    'RoBERTaInference',
+    'TFIDFInference',
+    'PredictionOrchestrator',
+    'EnsembleMethod',
+    'EnsembleResult',
+    'PredictionExplainer'
 ]
 
 __version__ = '1.0.0'
