@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+newspaper3k
+lxml[html_clean]
+pdfminer.six
+torch
+transformers
+safetensors
+httpx
+python-multipart
