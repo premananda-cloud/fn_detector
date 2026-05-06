@@ -1,7 +1,8 @@
 fastapi
 uvicorn[standard]
 newspaper3k
-lxml[html_clean]
+lxml
+lxml-html-clean
 pdfminer.six
 torch
 transformers

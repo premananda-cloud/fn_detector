@@ -4,7 +4,7 @@ from safetensors.torch import load_file
 
 
 class FakeNewsDetector:
-    def __init__(self, model_path="./models/bert", max_length=512):
+    def __init__(self, model_path="./models", max_length=512):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
 

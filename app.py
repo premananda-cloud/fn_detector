@@ -1,5 +1,6 @@
 import io
 import base64
+import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -35,10 +36,13 @@ app = FastAPI(title="Fake News Detector", lifespan=lifespan)
 
 async def fetch_url_text(url: str) -> str:
     """Use newspaper3k to extract article body from a URL."""
-    article = Article(url)
-    article.download()
-    article.parse()
-    text = article.text.strip()
+    def _download_and_parse():
+        article = Article(url)
+        article.download()
+        article.parse()
+        return article.text.strip()
+
+    text = await asyncio.get_event_loop().run_in_executor(None, _download_and_parse)
     if not text:
         raise ValueError("Could not extract article text from URL.")
     return text
@@ -53,6 +57,8 @@ def extract_pdf_text(file_bytes: bytes) -> str:
 
 
 def run_analysis(text: str) -> dict:
+    if detector is None:
+        raise RuntimeError("Model is not loaded yet. Please retry in a moment.")
     if not text or len(text.strip()) < 10:
         raise ValueError("Text is too short to analyse.")
     return detector.analyze(text)
@@ -89,7 +95,7 @@ async def serve_ui():
 async def analyze_text(req: TextItem):
     try:
         return run_analysis(req.text)
-    except ValueError as e:
+    except (ValueError, RuntimeError) as e:
         raise HTTPException(status_code=422, detail=str(e))
 
 
