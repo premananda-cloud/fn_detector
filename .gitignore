@@ -3,6 +3,8 @@ models/.gitkeep
 .venv/
 venv/
 
-*.__pycacha__
+*.__pycache__
 *.pyc
-__pycacha__/
+__pycache__/
+*zip
+
