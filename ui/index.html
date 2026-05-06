@@ -4,713 +4,588 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Veritas — Fake News Detector</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@300;400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --ink: #0e0d0b;
-    --paper: #f5f0e8;
-    --paper2: #ede7d6;
-    --red: #c0392b;
-    --green: #1a6b3c;
-    --amber: #b8860b;
-    --rule: #c8bfa8;
-    --mono: 'IBM Plex Mono', monospace;
-    --serif: 'Playfair Display', Georgia, serif;
-    --sans: 'IBM Plex Sans', sans-serif;
-  }
+:root {
+  --ink:       #0e0d0b;
+  --ink-soft:  #3a3830;
+  --ink-faint: #7a7468;
+  --paper:     #f6f1e9;
+  --paper2:    #ede7d6;
+  --paper3:    #e4dcc8;
+  --white:     #fdfaf5;
+  --red:       #b03020;
+  --red-pale:  #f9eeec;
+  --green:     #1a6b3c;
+  --green-pale:#ebf4ef;
+  --amber:     #a07010;
+  --rule:      #ccc4ae;
+  --rule-light:#e0d8c8;
+  --shadow:    0 2px 12px rgba(14,13,11,.07);
+  --shadow-lg: 0 8px 32px rgba(14,13,11,.12);
+  --mono: 'IBM Plex Mono', monospace;
+  --serif: 'Playfair Display', Georgia, serif;
+  --body: 'Source Serif 4', Georgia, serif;
+  --radius: 2px;
+  --t: .22s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--body);
+  min-height:100vh;
+  padding-bottom:80px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='.028'/%3E%3C/svg%3E");
+}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Header */
+header{border-bottom:1px solid var(--ink);background:var(--white);position:sticky;top:0;z-index:100;box-shadow:var(--shadow);}
+.header-inner{max-width:1100px;margin:0 auto;padding:0 32px;display:flex;align-items:stretch;min-height:62px;}
+.masthead-brand{display:flex;align-items:center;gap:16px;padding:14px 24px 14px 0;border-right:1px solid var(--rule);margin-right:24px;}
+.masthead-title{font-family:var(--serif);font-size:1.65rem;font-weight:700;letter-spacing:-.5px;line-height:1;}
+.masthead-title em{font-style:italic;color:var(--red);}
+.masthead-rule-v{width:1px;background:var(--rule);height:28px;align-self:center;}
+.masthead-meta{display:flex;flex-direction:column;justify-content:center;gap:3px;}
+.masthead-meta-line{font-family:var(--mono);font-size:0.6rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.1em;}
+.masthead-meta-line strong{color:var(--ink-soft);font-weight:500;}
+.header-spacer{flex:1;}
+.header-badge{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:0.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);padding:0 0 0 24px;border-left:1px solid var(--rule);}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse-dot 2.5s ease-in-out infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
 
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--sans);
-    min-height: 100vh;
-    padding: 0 0 80px;
-  }
+.dateline-bar{background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:0.6rem;text-transform:uppercase;letter-spacing:.14em;text-align:center;padding:6px 0;}
 
-  /* ── Masthead ── */
-  header {
-    border-bottom: 3px double var(--ink);
-    padding: 18px 48px 14px;
-    display: flex;
-    align-items: baseline;
-    gap: 20px;
-  }
-  .masthead-title {
-    font-family: var(--serif);
-    font-size: 2.6rem;
-    font-weight: 700;
-    letter-spacing: -1px;
-    line-height: 1;
-  }
-  .masthead-title em { font-style: italic; color: var(--red); }
-  .masthead-sub {
-    font-family: var(--mono);
-    font-size: 0.68rem;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    margin-left: auto;
-  }
+/* Layout */
+.container{max-width:1100px;margin:0 auto;padding:40px 32px 0;}
 
-  /* ── Layout ── */
-  .container {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 36px 24px 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 32px;
-  }
-  @media (max-width: 720px) {
-    .container { grid-template-columns: 1fr; padding: 20px 16px 0; }
-    header { padding: 14px 16px; }
-    .masthead-title { font-size: 1.8rem; }
-  }
+/* Input section */
+.input-section{background:var(--white);border:1px solid var(--rule);box-shadow:var(--shadow);margin-bottom:28px;overflow:hidden;}
+.section-head{padding:12px 24px;border-bottom:1px solid var(--rule-light);display:flex;align-items:center;gap:10px;background:var(--paper2);}
+.section-eyebrow{font-family:var(--mono);font-size:0.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint);}
+.section-eyebrow-sep{color:var(--rule);margin:0 4px;}
+.section-title-sm{font-family:var(--mono);font-size:0.66rem;font-weight:500;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;}
+.section-head-spacer{flex:1;}
 
-  /* ── Section labels ── */
-  .section-label {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    color: #888;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--rule); }
+.input-body{padding:24px;}
 
-  /* ── Input panel ── */
-  .input-panel { grid-column: 1 / -1; }
+/* Tabs */
+.tab-row{display:flex;border-bottom:1.5px solid var(--ink);margin-bottom:20px;}
+.tab{font-family:var(--mono);font-size:0.63rem;text-transform:uppercase;letter-spacing:.1em;padding:8px 20px;cursor:pointer;background:transparent;border:none;color:var(--ink-faint);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:color var(--t),border-color var(--t);}
+.tab:hover{color:var(--ink);}
+.tab.active{color:var(--ink);border-bottom-color:var(--ink);font-weight:500;}
 
-  .tab-row {
-    display: flex;
-    gap: 0;
-    border: 1.5px solid var(--ink);
-    width: fit-content;
-    margin-bottom: 16px;
-  }
-  .tab {
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    padding: 7px 18px;
-    cursor: pointer;
-    background: transparent;
-    border: none;
-    border-right: 1.5px solid var(--ink);
-    color: #777;
-    transition: background .15s, color .15s;
-  }
-  .tab:last-child { border-right: none; }
-  .tab.active { background: var(--ink); color: var(--paper); }
+.input-area{display:none;}
+.input-area.active{display:block;}
 
-  .input-area { display: none; }
-  .input-area.active { display: block; }
+textarea,input[type=text],input[type=url]{width:100%;font-family:var(--body);font-size:0.95rem;line-height:1.65;background:var(--paper);border:1px solid var(--rule);padding:14px 16px;resize:vertical;color:var(--ink);outline:none;transition:border-color var(--t),background var(--t);border-radius:var(--radius);}
+textarea{min-height:150px;}
+textarea:focus,input:focus{border-color:var(--ink);background:var(--white);}
+textarea::placeholder,input::placeholder{color:var(--ink-faint);font-style:italic;}
 
-  textarea, input[type=text], input[type=url] {
-    width: 100%;
-    font-family: var(--sans);
-    font-size: 0.95rem;
-    line-height: 1.6;
-    background: white;
-    border: 1.5px solid var(--ink);
-    padding: 14px 16px;
-    resize: vertical;
-    color: var(--ink);
-    outline: none;
-    transition: border-color .2s;
-  }
-  textarea { min-height: 160px; }
-  textarea:focus, input:focus { border-color: var(--red); }
+.char-count{font-family:var(--mono);font-size:0.6rem;color:var(--ink-faint);text-align:right;margin-top:5px;letter-spacing:.05em;}
 
-  .file-drop {
-    border: 2px dashed var(--rule);
-    padding: 36px;
-    text-align: center;
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 0.8rem;
-    color: #888;
-    transition: border-color .2s, background .2s;
-  }
-  .file-drop:hover, .file-drop.dragover { border-color: var(--ink); background: var(--paper2); color: var(--ink); }
-  #file-input { display: none; }
-  .file-name { margin-top: 8px; font-family: var(--mono); font-size: 0.75rem; color: var(--ink); }
+.file-drop{border:1.5px dashed var(--rule);padding:36px;text-align:center;cursor:pointer;font-family:var(--mono);font-size:0.75rem;color:var(--ink-faint);background:var(--paper);transition:border-color var(--t),background var(--t),color var(--t);border-radius:var(--radius);}
+.file-drop:hover,.file-drop.dragover{border-color:var(--ink);background:var(--paper2);color:var(--ink);}
+.file-drop-icon{font-size:1.5rem;margin-bottom:10px;}
+#file-input{display:none;}
+.file-name{margin-top:10px;font-family:var(--mono);font-size:0.72rem;color:var(--ink-soft);display:flex;align-items:center;gap:6px;}
+.file-name-icon{color:var(--green);}
 
-  .analyze-btn {
-    margin-top: 14px;
-    font-family: var(--mono);
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    background: var(--ink);
-    color: var(--paper);
-    border: none;
-    padding: 12px 32px;
-    cursor: pointer;
-    transition: background .15s;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .analyze-btn:hover { background: #2a2820; }
-  .analyze-btn:disabled { background: #aaa; cursor: not-allowed; }
-  .spinner {
-    width: 14px; height: 14px;
-    border: 2px solid rgba(255,255,255,.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-    display: none;
-  }
-  .analyze-btn.loading .spinner { display: block; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* Actions */
+.action-row{display:flex;align-items:center;gap:12px;margin-top:18px;}
+.analyze-btn{font-family:var(--mono);font-size:0.7rem;text-transform:uppercase;letter-spacing:.12em;background:var(--ink);color:var(--paper);border:none;padding:12px 28px;cursor:pointer;transition:background var(--t),transform var(--t);display:flex;align-items:center;gap:10px;border-radius:var(--radius);}
+.analyze-btn:hover:not(:disabled){background:#2a2820;transform:translateY(-1px);}
+.analyze-btn:active:not(:disabled){transform:translateY(0);}
+.analyze-btn:disabled{background:var(--rule);cursor:not-allowed;}
+.spinner{width:13px;height:13px;border:1.5px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+.analyze-btn.loading .spinner{display:block;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-  /* ── Results ── */
-  #results { grid-column: 1 / -1; display: none; }
-  #results.visible { display: block; }
+.clear-btn{font-family:var(--mono);font-size:0.63rem;text-transform:uppercase;letter-spacing:.1em;background:transparent;color:var(--ink-faint);border:1px solid var(--rule);padding:11px 16px;cursor:pointer;transition:color var(--t),border-color var(--t);border-radius:var(--radius);display:none;}
+.clear-btn:hover{color:var(--ink);border-color:var(--ink-soft);}
+.clear-btn.visible{display:block;}
 
-  .verdict-banner {
-    border: 2px solid var(--ink);
-    padding: 24px 28px;
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    margin-bottom: 28px;
-    position: relative;
-    overflow: hidden;
-  }
-  .verdict-banner::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 6px;
-  }
-  .verdict-banner.fake::before { background: var(--red); }
-  .verdict-banner.real::before { background: var(--green); }
+.error-box{border:1px solid var(--red);padding:12px 16px;font-family:var(--mono);font-size:0.72rem;color:var(--red);background:var(--red-pale);margin-top:14px;border-radius:var(--radius);display:none;}
+.error-box.visible{display:block;}
 
-  .verdict-icon {
-    font-size: 2.8rem;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-  .verdict-text { flex: 1; }
-  .verdict-headline {
-    font-family: var(--serif);
-    font-size: 1.7rem;
-    font-weight: 700;
-    line-height: 1.1;
-  }
-  .verdict-headline.fake { color: var(--red); }
-  .verdict-headline.real { color: var(--green); }
-  .verdict-sub {
-    font-size: 0.85rem;
-    color: #555;
-    margin-top: 4px;
-    font-family: var(--sans);
-    font-weight: 300;
-  }
-  .verdict-conf {
-    font-family: var(--mono);
-    font-size: 1.5rem;
-    font-weight: 500;
-    text-align: right;
-    flex-shrink: 0;
-  }
+/* New analysis bar */
+.new-analysis-bar{display:none;border-top:1px solid var(--rule-light);padding:18px 24px;background:var(--paper2);align-items:center;gap:14px;}
+.new-analysis-bar.visible{display:flex;}
+.new-btn{font-family:var(--mono);font-size:0.63rem;text-transform:uppercase;letter-spacing:.1em;background:var(--ink);color:var(--paper);border:none;padding:10px 22px;cursor:pointer;border-radius:var(--radius);transition:background var(--t);display:flex;align-items:center;gap:8px;}
+.new-btn:hover{background:#2a2820;}
+.new-btn-hint{font-family:var(--body);font-size:0.82rem;font-style:italic;color:var(--ink-faint);}
 
-  /* ── Two-col results grid ── */
-  .results-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-bottom: 24px;
-  }
-  @media (max-width: 720px) { .results-grid { grid-template-columns: 1fr; } }
+/* Results */
+#results{display:none;animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both;}
+#results.visible{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
 
-  .card {
-    border: 1.5px solid var(--rule);
-    padding: 20px;
-    background: white;
-  }
-  .card-title {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    color: #888;
-    margin-bottom: 14px;
-  }
+/* Verdict */
+.verdict-banner{border:1px solid var(--rule);background:var(--white);box-shadow:var(--shadow-lg);display:grid;grid-template-columns:5px 1fr auto;margin-bottom:24px;overflow:hidden;}
+.verdict-accent{align-self:stretch;}
+.verdict-accent.fake{background:var(--red);}
+.verdict-accent.real{background:var(--green);}
+.verdict-main{padding:26px 28px;display:flex;align-items:center;gap:20px;}
+.verdict-stamp{font-family:var(--serif);font-size:2rem;font-weight:700;font-style:italic;line-height:1;padding:6px 14px;border:2.5px solid;border-radius:2px;flex-shrink:0;letter-spacing:-.5px;transform:rotate(-2deg);opacity:0;transition:opacity .35s ease .15s;}
+.verdict-stamp.show{opacity:1;}
+.verdict-stamp.fake{color:var(--red);border-color:var(--red);}
+.verdict-stamp.real{color:var(--green);border-color:var(--green);}
+.verdict-copy{flex:1;}
+.verdict-headline{font-family:var(--serif);font-size:1.55rem;font-weight:700;line-height:1.15;margin-bottom:5px;}
+.verdict-headline.fake{color:var(--red);}
+.verdict-headline.real{color:var(--green);}
+.verdict-subline{font-family:var(--mono);font-size:0.62rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.1em;}
+.verdict-confidence{padding:26px 32px;border-left:1px solid var(--rule-light);text-align:center;background:var(--paper);min-width:120px;}
+.conf-value{font-family:var(--serif);font-size:2.4rem;font-weight:700;line-height:1;margin-bottom:4px;}
+.conf-value.fake{color:var(--red);}
+.conf-value.real{color:var(--green);}
+.conf-label{font-family:var(--mono);font-size:0.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);}
 
-  /* Probability bars */
-  .prob-row { margin-bottom: 12px; }
-  .prob-label {
-    display: flex;
-    justify-content: space-between;
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    margin-bottom: 5px;
-  }
-  .prob-bar-bg { height: 8px; background: var(--paper2); position: relative; }
-  .prob-bar-fill {
-    height: 100%;
-    transition: width .8s cubic-bezier(.4,0,.2,1);
-    width: 0;
-  }
-  .prob-bar-fill.fake { background: var(--red); }
-  .prob-bar-fill.real { background: var(--green); }
+/* Cards */
+.results-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+.card{background:var(--white);border:1px solid var(--rule);box-shadow:var(--shadow);overflow:hidden;}
+.card-head{padding:12px 20px;border-bottom:1px solid var(--rule-light);background:var(--paper2);}
+.card-eyebrow{font-family:var(--mono);font-size:0.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint);}
+.card-body{padding:20px;}
 
-  /* Nuance meter */
-  .nuance-meter {
-    position: relative;
-    height: 28px;
-    background: linear-gradient(to right, var(--red), var(--amber), var(--green));
-    border: 1px solid var(--rule);
-    margin: 8px 0 4px;
-  }
-  .nuance-needle {
-    position: absolute;
-    top: -6px;
-    width: 3px;
-    height: 40px;
-    background: var(--ink);
-    transform: translateX(-50%);
-    transition: left .8s cubic-bezier(.4,0,.2,1);
-  }
-  .nuance-labels {
-    display: flex;
-    justify-content: space-between;
-    font-family: var(--mono);
-    font-size: 0.6rem;
-    color: #888;
-    margin-top: 8px;
-  }
-  .nuance-desc {
-    font-size: 0.82rem;
-    font-family: var(--sans);
-    line-height: 1.5;
-    color: #444;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--rule);
-  }
+/* Prob bars */
+.prob-row{margin-bottom:16px;}
+.prob-row:last-child{margin-bottom:0;}
+.prob-label{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;}
+.prob-label-text{font-family:var(--mono);font-size:0.63rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);}
+.prob-label-pct{font-family:var(--mono);font-size:0.8rem;font-weight:500;}
+.prob-label-pct.fake{color:var(--red);}
+.prob-label-pct.real{color:var(--green);}
+.prob-track{height:7px;background:var(--paper3);border-radius:1px;overflow:hidden;}
+.prob-fill{height:100%;border-radius:1px;width:0;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.prob-fill.fake{background:var(--red);}
+.prob-fill.real{background:var(--green);}
 
-  /* Attention tokens */
-  .token-cloud {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 4px;
-  }
-  .token {
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    padding: 3px 8px;
-    border: 1px solid;
-    transition: opacity .3s;
-  }
+/* Spectrum */
+.spectrum-track{position:relative;height:24px;background:linear-gradient(to right,var(--red),var(--amber),var(--green));border-radius:2px;margin:8px 0 6px;}
+.spectrum-needle{position:absolute;top:-5px;width:2px;height:34px;background:var(--ink);border-radius:1px;transform:translateX(-50%);transition:left 1s cubic-bezier(.4,0,.2,1);box-shadow:0 0 0 2px var(--white);}
+.spectrum-labels{display:flex;justify-content:space-between;font-family:var(--mono);font-size:0.55rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em;margin-top:10px;}
+.spectrum-reading{font-family:var(--body);font-size:0.82rem;font-style:italic;color:var(--ink-soft);margin-top:14px;padding-top:14px;border-top:1px solid var(--rule-light);line-height:1.55;}
 
-  /* Interpretation box */
-  .interp-box {
-    border: 1.5px solid var(--rule);
-    background: var(--paper2);
-    padding: 20px 24px;
-    margin-bottom: 24px;
-  }
-  .interp-box h3 {
-    font-family: var(--serif);
-    font-size: 1.05rem;
-    margin-bottom: 10px;
-  }
-  .interp-box p {
-    font-size: 0.88rem;
-    line-height: 1.65;
-    color: #333;
-    margin-bottom: 8px;
-  }
-  .interp-box p:last-child { margin-bottom: 0; }
-  .interp-box .caveat {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    color: #888;
-    border-top: 1px solid var(--rule);
-    padding-top: 10px;
-    margin-top: 12px;
-  }
+/* Explanation */
+.explanation-card{background:var(--white);border:1px solid var(--rule);box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden;}
+.explanation-summary{font-family:var(--body);font-size:1rem;line-height:1.7;color:var(--ink);margin-bottom:16px;}
+.explanation-recommendation{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;font-family:var(--body);font-size:0.88rem;line-height:1.6;color:var(--ink-soft);margin-bottom:16px;font-style:italic;}
+.explanation-recommendation.fake{border-left-color:var(--red);}
+.explanation-recommendation.real{border-left-color:var(--green);}
+.explanation-caveat{font-family:var(--mono);font-size:0.62rem;color:var(--ink-faint);line-height:1.6;padding-top:14px;border-top:1px solid var(--rule-light);}
 
-  /* Preview text */
-  .preview-text {
-    font-size: 0.8rem;
-    font-family: var(--sans);
-    color: #555;
-    background: var(--paper2);
-    border-left: 3px solid var(--rule);
-    padding: 10px 14px;
-    line-height: 1.5;
-    font-style: italic;
-    word-break: break-word;
-  }
+/* Signals */
+.signals-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.signal-item{border:1px solid var(--rule-light);padding:12px 14px;background:var(--paper);border-radius:var(--radius);}
+.signal-item.negative{border-left:3px solid var(--red);background:var(--red-pale);}
+.signal-item.positive{border-left:3px solid var(--green);background:var(--green-pale);}
+.signal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.signal-label{font-family:var(--mono);font-size:0.62rem;font-weight:500;text-transform:uppercase;letter-spacing:.08em;}
+.signal-label.negative{color:var(--red);}
+.signal-label.positive{color:var(--green);}
+.signal-count{font-family:var(--mono);font-size:0.6rem;color:var(--ink-faint);background:var(--paper3);padding:1px 6px;border-radius:8px;}
+.signal-desc{font-family:var(--body);font-size:0.78rem;color:var(--ink-soft);line-height:1.5;margin-bottom:7px;}
+.signal-examples{display:flex;flex-wrap:wrap;gap:4px;}
+.signal-tag{font-family:var(--mono);font-size:0.6rem;padding:2px 7px;border-radius:2px;background:var(--paper3);color:var(--ink-soft);}
+.no-signals{font-family:var(--body);font-size:0.85rem;color:var(--ink-faint);font-style:italic;text-align:center;padding:20px;grid-column:1/-1;}
 
-  /* Error */
-  .error-box {
-    border: 2px solid var(--red);
-    padding: 16px 20px;
-    font-family: var(--mono);
-    font-size: 0.8rem;
-    color: var(--red);
-    background: #fff5f5;
-    margin-top: 16px;
-    display: none;
-  }
-  .error-box.visible { display: block; }
+/* Tokens */
+.token-cloud{display:flex;flex-wrap:wrap;gap:6px;}
+.token{font-family:var(--mono);font-size:0.68rem;padding:3px 8px;border:1px solid;border-radius:2px;cursor:default;transition:transform var(--t);}
+.token:hover{transform:translateY(-1px);}
+.token-legend{font-family:var(--mono);font-size:0.6rem;color:var(--ink-faint);margin-top:14px;padding-top:10px;border-top:1px solid var(--rule-light);line-height:1.6;}
+
+/* Preview */
+.preview-block{display:none;margin-bottom:20px;}
+.preview-file-label{font-family:var(--mono);font-size:0.6rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+.preview-quote{font-family:var(--body);font-size:0.85rem;font-style:italic;color:var(--ink-soft);background:var(--paper2);border-left:3px solid var(--rule);padding:14px 18px;line-height:1.65;word-break:break-word;}
+
+/* Responsive */
+@media(max-width:720px){
+  .container{padding:20px 16px 0;}
+  .header-inner{padding:0 16px;}
+  .masthead-meta{display:none;}
+  .results-grid,.signals-grid{grid-template-columns:1fr;}
+  .verdict-confidence{display:none;}
+  .verdict-banner{grid-template-columns:5px 1fr;}
+}
 </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <div class="masthead-title"><em>Veritas</em> — News Integrity Engine</div>
+  <div class="header-inner">
+    <div class="masthead-brand">
+      <div class="masthead-title"><em>Veritas</em></div>
+      <div class="masthead-rule-v"></div>
+      <div class="masthead-meta">
+        <div class="masthead-meta-line">News Integrity Engine</div>
+        <div class="masthead-meta-line"><strong>BERT</strong> · 97% accuracy · Attention-based explainer</div>
+      </div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-badge">
+      <div class="badge-dot"></div>
+      Model online
+    </div>
   </div>
-  <div class="masthead-sub">BERT · 97% accuracy · Attention-based explainer</div>
 </header>
+
+<div class="dateline-bar" id="dateline"></div>
 
 <div class="container">
 
   <!-- Input panel -->
-  <div class="input-panel">
-    <div class="section-label">Submit Article</div>
-    <div class="tab-row">
-      <button class="tab active" data-tab="text">Paste Text</button>
-      <button class="tab" data-tab="url">URL</button>
-      <button class="tab" data-tab="file">Upload File</button>
+  <div class="input-section">
+    <div class="section-head">
+      <div class="section-eyebrow">Step 01<span class="section-eyebrow-sep">·</span></div>
+      <div class="section-title-sm">Submit Article for Analysis</div>
     </div>
-
-    <div class="input-area active" id="tab-text">
-      <textarea id="text-input" placeholder="Paste article text here…"></textarea>
-    </div>
-    <div class="input-area" id="tab-url">
-      <input type="url" id="url-input" placeholder="https://example.com/article"/>
-    </div>
-    <div class="input-area" id="tab-file">
-      <div class="file-drop" id="file-drop">
-        Drop a .txt or .pdf file here, or click to browse
-        <input type="file" id="file-input" accept=".txt,.pdf"/>
+    <div class="input-body">
+      <div class="tab-row">
+        <button class="tab active" data-tab="text">Paste Text</button>
+        <button class="tab" data-tab="url">URL</button>
+        <button class="tab" data-tab="file">Upload File</button>
       </div>
-      <div class="file-name" id="file-name"></div>
+
+      <div class="input-area active" id="tab-text">
+        <textarea id="text-input" placeholder="Paste article text here — headline, body copy, or both…" oninput="updateCharCount(this)"></textarea>
+        <div class="char-count" id="char-count">0 characters</div>
+      </div>
+      <div class="input-area" id="tab-url">
+        <input type="url" id="url-input" placeholder="https://example.com/article-to-check"/>
+      </div>
+      <div class="input-area" id="tab-file">
+        <div class="file-drop" id="file-drop">
+          <div class="file-drop-icon">📄</div>
+          Drop a <strong>.txt</strong> or <strong>.pdf</strong> here, or click to browse
+          <input type="file" id="file-input" accept=".txt,.pdf"/>
+        </div>
+        <div class="file-name" id="file-name"></div>
+      </div>
+
+      <div class="action-row">
+        <button class="analyze-btn" id="analyze-btn">
+          <span class="spinner"></span>
+          <span class="btn-label">Analyse Article</span>
+        </button>
+        <button class="clear-btn" id="clear-btn" onclick="clearAll()">✕ Clear</button>
+      </div>
+      <div class="error-box" id="error-box"></div>
     </div>
 
-    <button class="analyze-btn" id="analyze-btn">
-      <span class="spinner"></span>
-      <span class="btn-label">Analyse</span>
-    </button>
-    <div class="error-box" id="error-box"></div>
+    <div class="new-analysis-bar" id="new-analysis-bar">
+      <button class="new-btn" onclick="startNewAnalysis()">↩ New Analysis</button>
+      <span class="new-btn-hint">Clear results and analyse another article</span>
+    </div>
   </div>
 
   <!-- Results -->
   <div id="results">
 
-    <div class="section-label">Analysis Report</div>
-
-    <!-- Verdict banner -->
+    <!-- Verdict -->
     <div class="verdict-banner" id="verdict-banner">
-      <div class="verdict-icon" id="verdict-icon"></div>
-      <div class="verdict-text">
-        <div class="verdict-headline" id="verdict-headline"></div>
-        <div class="verdict-sub" id="verdict-sub"></div>
+      <div class="verdict-accent" id="verdict-accent"></div>
+      <div class="verdict-main">
+        <div class="verdict-stamp" id="verdict-stamp"></div>
+        <div class="verdict-copy">
+          <div class="verdict-headline" id="verdict-headline"></div>
+          <div class="verdict-subline" id="verdict-subline"></div>
+        </div>
       </div>
-      <div class="verdict-conf" id="verdict-conf"></div>
+      <div class="verdict-confidence">
+        <div class="conf-value" id="conf-value"></div>
+        <div class="conf-label">Confidence</div>
+      </div>
     </div>
 
-    <!-- Two-col cards -->
+    <!-- Explanation -->
+    <div class="explanation-card">
+      <div class="card-head"><div class="card-eyebrow">Step 02 · Analysis Explanation</div></div>
+      <div class="card-body">
+        <div class="explanation-summary" id="explanation-summary"></div>
+        <div class="explanation-recommendation" id="explanation-recommendation"></div>
+        <div class="explanation-caveat" id="explanation-caveat"></div>
+      </div>
+    </div>
+
+    <!-- Probabilities + Spectrum -->
     <div class="results-grid">
-      <!-- Probabilities -->
       <div class="card">
-        <div class="card-title">Model Probabilities</div>
-        <div class="prob-row">
-          <div class="prob-label"><span>FAKE</span><span id="pct-fake">—</span></div>
-          <div class="prob-bar-bg"><div class="prob-bar-fill fake" id="bar-fake"></div></div>
-        </div>
-        <div class="prob-row">
-          <div class="prob-label"><span>REAL</span><span id="pct-real">—</span></div>
-          <div class="prob-bar-bg"><div class="prob-bar-fill real" id="bar-real"></div></div>
+        <div class="card-head"><div class="card-eyebrow">Model Probabilities</div></div>
+        <div class="card-body">
+          <div class="prob-row">
+            <div class="prob-label">
+              <span class="prob-label-text">Misinformation</span>
+              <span class="prob-label-pct fake" id="pct-fake">—</span>
+            </div>
+            <div class="prob-track"><div class="prob-fill fake" id="bar-fake"></div></div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-label">
+              <span class="prob-label-text">Credible</span>
+              <span class="prob-label-pct real" id="pct-real">—</span>
+            </div>
+            <div class="prob-track"><div class="prob-fill real" id="bar-real"></div></div>
+          </div>
         </div>
       </div>
 
-      <!-- Nuance meter -->
       <div class="card">
-        <div class="card-title">Certainty Spectrum</div>
-        <div class="nuance-meter">
-          <div class="nuance-needle" id="nuance-needle"></div>
+        <div class="card-head"><div class="card-eyebrow">Certainty Spectrum</div></div>
+        <div class="card-body">
+          <div class="spectrum-track">
+            <div class="spectrum-needle" id="spectrum-needle"></div>
+          </div>
+          <div class="spectrum-labels">
+            <span>Clearly Fake</span>
+            <span>Borderline</span>
+            <span>Clearly Real</span>
+          </div>
+          <div class="spectrum-reading" id="spectrum-reading"></div>
         </div>
-        <div class="nuance-labels">
-          <span>Clearly Fake</span>
-          <span>Borderline</span>
-          <span>Clearly Real</span>
-        </div>
-        <div class="nuance-desc" id="nuance-desc"></div>
       </div>
     </div>
 
-    <!-- Nuanced interpretation -->
-    <div class="interp-box" id="interp-box">
-      <h3>What does this mean?</h3>
-      <p id="interp-p1"></p>
-      <p id="interp-p2"></p>
-      <div class="caveat" id="interp-caveat"></div>
+    <!-- Linguistic signals -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-head"><div class="card-eyebrow">Step 03 · Linguistic Signal Breakdown</div></div>
+      <div class="card-body">
+        <div class="signals-grid" id="signals-grid"></div>
+      </div>
     </div>
 
     <!-- Attention tokens -->
-    <div class="card" style="margin-bottom:24px">
-      <div class="card-title">Key Signals — Words the Model Focused On</div>
-      <div class="token-cloud" id="token-cloud"></div>
-      <p style="font-size:0.75rem;color:#888;margin-top:12px;font-family:var(--mono);">
-        Colour intensity = relative attention weight. These are the tokens most influencing the prediction.
-      </p>
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-head"><div class="card-eyebrow">Step 04 · Model Attention — Key Tokens</div></div>
+      <div class="card-body">
+        <div class="token-cloud" id="token-cloud"></div>
+        <div class="token-legend">
+          Colour intensity reflects relative attention weight assigned by the model's [CLS] token.
+          These are the words most influencing the final prediction. Darker = higher weight.
+        </div>
+      </div>
     </div>
 
     <!-- Extracted preview -->
-    <div id="preview-section" style="display:none;margin-bottom:24px">
-      <div class="section-label">Extracted Text Preview</div>
-      <div class="preview-text" id="preview-text"></div>
+    <div class="preview-block" id="preview-block">
+      <div class="card">
+        <div class="card-head"><div class="card-eyebrow">Extracted Text Preview</div></div>
+        <div class="card-body">
+          <div class="preview-file-label" id="preview-file-label"></div>
+          <div class="preview-quote" id="preview-text"></div>
+        </div>
+      </div>
     </div>
 
   </div><!-- /results -->
 
-</div><!-- /container -->
+</div>
 
 <script>
-// ── Tab switching ──
-document.querySelectorAll('.tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.input-area').forEach(a => a.classList.remove('active'));
+// Dateline
+(function(){
+  const d=new Date();
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('dateline').textContent=
+    days[d.getDay()]+', '+months[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()+
+    '  ·  Veritas Integrity Engine  ·  BERT-base-uncased  ·  97% Accuracy';
+})();
+
+// Tabs
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.input-area').forEach(a=>a.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
     hideError();
   });
 });
 
-// ── File drop ──
-const fileDrop = document.getElementById('file-drop');
-const fileInput = document.getElementById('file-input');
-const fileName = document.getElementById('file-name');
-let selectedFile = null;
+function updateCharCount(el){
+  const n=el.value.length;
+  document.getElementById('char-count').textContent=n.toLocaleString()+' character'+(n===1?'':'s');
+}
 
-fileDrop.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => {
-  selectedFile = fileInput.files[0];
-  fileName.textContent = selectedFile ? selectedFile.name : '';
+// File drop
+const fileDrop=document.getElementById('file-drop');
+const fileInput=document.getElementById('file-input');
+const fileNameEl=document.getElementById('file-name');
+let selectedFile=null;
+fileDrop.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',()=>{
+  selectedFile=fileInput.files[0];
+  fileNameEl.innerHTML=selectedFile?'<span class="file-name-icon">✓</span>'+selectedFile.name:'';
 });
-fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.classList.add('dragover'); });
-fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('dragover'));
-fileDrop.addEventListener('drop', e => {
-  e.preventDefault();
-  fileDrop.classList.remove('dragover');
-  selectedFile = e.dataTransfer.files[0];
-  fileName.textContent = selectedFile ? selectedFile.name : '';
+fileDrop.addEventListener('dragover',e=>{e.preventDefault();fileDrop.classList.add('dragover');});
+fileDrop.addEventListener('dragleave',()=>fileDrop.classList.remove('dragover'));
+fileDrop.addEventListener('drop',e=>{
+  e.preventDefault();fileDrop.classList.remove('dragover');
+  selectedFile=e.dataTransfer.files[0];
+  fileNameEl.innerHTML=selectedFile?'<span class="file-name-icon">✓</span>'+selectedFile.name:'';
 });
 
-// ── Analyse ──
-const btn = document.getElementById('analyze-btn');
-btn.addEventListener('click', runAnalysis);
+const btn=document.getElementById('analyze-btn');
+btn.addEventListener('click',runAnalysis);
 
-function activeTab() {
-  return document.querySelector('.tab.active').dataset.tab;
+function activeTab(){return document.querySelector('.tab.active').dataset.tab;}
+function setLoading(on){
+  btn.classList.toggle('loading',on);btn.disabled=on;
+  btn.querySelector('.btn-label').textContent=on?'Analysing…':'Analyse Article';
 }
-function setLoading(on) {
-  btn.classList.toggle('loading', on);
-  btn.disabled = on;
-  btn.querySelector('.btn-label').textContent = on ? 'Analysing…' : 'Analyse';
+function showError(msg){
+  const b=document.getElementById('error-box');b.textContent=msg;b.classList.add('visible');
 }
-function showError(msg) {
-  const box = document.getElementById('error-box');
-  box.textContent = msg;
-  box.classList.add('visible');
-}
-function hideError() {
-  document.getElementById('error-box').classList.remove('visible');
-}
+function hideError(){document.getElementById('error-box').classList.remove('visible');}
 
-async function runAnalysis() {
-  hideError();
-  setLoading(true);
+async function runAnalysis(){
+  hideError();setLoading(true);
   document.getElementById('results').classList.remove('visible');
-
-  try {
-    let result;
-    const tab = activeTab();
-
-    if (tab === 'text') {
-      const text = document.getElementById('text-input').value.trim();
-      if (!text) throw new Error('Please paste some text first.');
-      const r = await fetch('/analyze/text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-      result = await handleResponse(r);
-
-    } else if (tab === 'url') {
-      const url = document.getElementById('url-input').value.trim();
-      if (!url) throw new Error('Please enter a URL.');
-      const r = await fetch('/analyze/url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      result = await handleResponse(r);
-
-    } else {
-      if (!selectedFile) throw new Error('Please select a file.');
-      const fd = new FormData();
-      fd.append('file', selectedFile);
-      const r = await fetch('/analyze/file', { method: 'POST', body: fd });
-      result = await handleResponse(r);
+  try{
+    let result;const tab=activeTab();
+    if(tab==='text'){
+      const text=document.getElementById('text-input').value.trim();
+      if(!text)throw new Error('Please paste some article text first.');
+      const r=await fetch('/analyze/text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+      result=await handleResponse(r);
+    }else if(tab==='url'){
+      const url=document.getElementById('url-input').value.trim();
+      if(!url)throw new Error('Please enter a URL.');
+      const r=await fetch('/analyze/url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+      result=await handleResponse(r);
+    }else{
+      if(!selectedFile)throw new Error('Please select a file to upload.');
+      const fd=new FormData();fd.append('file',selectedFile);
+      const r=await fetch('/analyze/file',{method:'POST',body:fd});
+      result=await handleResponse(r);
     }
-
     renderResults(result);
-  } catch (e) {
-    showError(e.message);
-  } finally {
-    setLoading(false);
-  }
+  }catch(e){showError(e.message);}
+  finally{setLoading(false);}
 }
 
-async function handleResponse(r) {
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.detail || 'Server error.');
+async function handleResponse(r){
+  const data=await r.json();
+  if(!r.ok)throw new Error(data.detail||'Server error — please try again.');
   return data;
 }
 
-// ── Render ──
-function renderResults(d) {
-  const isFake = d.is_fake;
-  const conf = d.confidence;
-  const probFake = d.probability.fake;
-  const probReal = d.probability.real;
+function clearAll(){
+  document.getElementById('text-input').value='';
+  document.getElementById('url-input').value='';
+  document.getElementById('char-count').textContent='0 characters';
+  selectedFile=null;fileNameEl.innerHTML='';fileInput.value='';
+  hideError();
+  document.getElementById('clear-btn').classList.remove('visible');
+}
 
-  // Banner
-  const banner = document.getElementById('verdict-banner');
-  banner.className = 'verdict-banner ' + (isFake ? 'fake' : 'real');
-  document.getElementById('verdict-icon').textContent = isFake ? '⚠' : '✓';
-  const hl = document.getElementById('verdict-headline');
-  hl.className = 'verdict-headline ' + (isFake ? 'fake' : 'real');
-  hl.textContent = isFake ? 'Likely Misinformation' : 'Likely Credible';
-  document.getElementById('verdict-conf').textContent = pct(conf);
-  document.getElementById('verdict-conf').style.color = isFake ? 'var(--red)' : 'var(--green)';
+function startNewAnalysis(){
+  clearAll();
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('new-analysis-bar').classList.remove('visible');
+  window.scrollTo({top:0,behavior:'smooth'});
+  setTimeout(()=>{
+    const tab=activeTab();
+    if(tab==='text')document.getElementById('text-input').focus();
+    else if(tab==='url')document.getElementById('url-input').focus();
+  },400);
+}
 
-  // Sub-label based on confidence zone
-  const zone = confidenceZone(isFake, conf);
-  document.getElementById('verdict-sub').textContent = zone.sub;
+function pct(v){return(v*100).toFixed(1)+'%';}
 
-  // Prob bars (animate after paint)
-  requestAnimationFrame(() => {
-    document.getElementById('bar-fake').style.width = pct(probFake);
-    document.getElementById('bar-real').style.width = pct(probReal);
-    document.getElementById('pct-fake').textContent = pct(probFake);
-    document.getElementById('pct-real').textContent = pct(probReal);
+function renderResults(d){
+  const isFake=d.is_fake,conf=d.confidence,pFake=d.probability.fake,pReal=d.probability.real;
+  const expl=d.explanation||{},signals=d.signals||[];
+
+  document.getElementById('clear-btn').classList.add('visible');
+
+  // Verdict
+  document.getElementById('verdict-accent').className='verdict-accent '+(isFake?'fake':'real');
+  const stamp=document.getElementById('verdict-stamp');
+  stamp.className='verdict-stamp '+(isFake?'fake':'real');
+  stamp.textContent=isFake?'Fake':'Real';
+  setTimeout(()=>stamp.classList.add('show'),100);
+  const hl=document.getElementById('verdict-headline');
+  hl.className='verdict-headline '+(isFake?'fake':'real');
+  hl.textContent=isFake?'Likely Misinformation':'Likely Credible';
+  document.getElementById('verdict-subline').textContent=(expl.tier_label||'')+'  ·  '+pct(conf)+' certainty';
+  const cv=document.getElementById('conf-value');
+  cv.className='conf-value '+(isFake?'fake':'real');
+  cv.textContent=pct(conf);
+
+  // Explanation
+  document.getElementById('explanation-summary').textContent=expl.summary||'';
+  const rec=document.getElementById('explanation-recommendation');
+  rec.className='explanation-recommendation '+(isFake?'fake':'real');
+  rec.textContent=expl.recommendation||'';
+  document.getElementById('explanation-caveat').textContent=expl.caveat||'';
+
+  // Bars
+  requestAnimationFrame(()=>{
+    document.getElementById('bar-fake').style.width=pct(pFake);
+    document.getElementById('bar-real').style.width=pct(pReal);
+    document.getElementById('pct-fake').textContent=pct(pFake);
+    document.getElementById('pct-real').textContent=pct(pReal);
   });
 
-  // Nuance needle: 0% = all fake, 100% = all real
-  const needlePct = probReal * 100;
-  setTimeout(() => {
-    document.getElementById('nuance-needle').style.left = needlePct + '%';
-  }, 50);
-  document.getElementById('nuance-desc').textContent = zone.nuanceDesc;
+  // Spectrum
+  setTimeout(()=>{ document.getElementById('spectrum-needle').style.left=(pReal*100)+'%'; },80);
+  const sr=pReal<.2?'Strongly skewed toward fabrication. Very few credibility markers detected.':
+    pReal<.4?'Leaning toward misinformation. Negative linguistic signals outweigh positive ones.':
+    pReal<.6?'Near the boundary — the model is genuinely uncertain about this text.':
+    pReal<.8?'Leaning toward credibility. Language is largely consistent with factual reporting.':
+    'Strongly consistent with credible journalism. Few disinformation markers detected.';
+  document.getElementById('spectrum-reading').textContent=sr;
 
-  // Interpretation
-  document.getElementById('interp-p1').textContent = zone.p1;
-  document.getElementById('interp-p2').textContent = zone.p2;
-  document.getElementById('interp-caveat').textContent =
-    'This model was fine-tuned on BERT-base-uncased with 97% validation accuracy. ' +
-    'It analyses linguistic patterns, not external facts. Always cross-reference with ' +
-    'trusted sources. Satire, opinion pieces, and highly technical text may score differently.';
+  // Signals
+  const grid=document.getElementById('signals-grid');
+  grid.innerHTML='';
+  if(!signals.length){
+    grid.innerHTML='<div class="no-signals">No notable linguistic signals detected.</div>';
+  }else{
+    signals.forEach(sig=>{
+      const div=document.createElement('div');
+      div.className='signal-item '+(sig.positive?'positive':'negative');
+      div.innerHTML=`
+        <div class="signal-header">
+          <span class="signal-label ${sig.positive?'positive':'negative'}">${sig.label}</span>
+          <span class="signal-count">${sig.count}×</span>
+        </div>
+        <div class="signal-desc">${sig.description}</div>
+        <div class="signal-examples">${sig.examples.map(e=>`<span class="signal-tag">${e}</span>`).join('')}</div>`;
+      grid.appendChild(div);
+    });
+  }
 
-  // Attention tokens
-  const cloud = document.getElementById('token-cloud');
-  cloud.innerHTML = '';
-  const tokens = d.attention || [];
-  tokens.forEach(({ token, score }) => {
-    const span = document.createElement('span');
-    span.className = 'token';
-    // Clean wordpiece prefix
-    const label = token.startsWith('##') ? token.slice(2) : token;
-    span.textContent = label;
-    // Colour: fake = red tones, real = green tones, scaled by score
-    const alpha = 0.15 + score * 0.75;
-    if (isFake) {
-      span.style.borderColor = `rgba(192,57,43,${alpha})`;
-      span.style.background = `rgba(192,57,43,${alpha * 0.25})`;
-      span.style.color = score > 0.6 ? 'var(--red)' : 'var(--ink)';
-    } else {
-      span.style.borderColor = `rgba(26,107,60,${alpha})`;
-      span.style.background = `rgba(26,107,60,${alpha * 0.25})`;
-      span.style.color = score > 0.6 ? 'var(--green)' : 'var(--ink)';
-    }
-    span.title = `Attention score: ${score}`;
+  // Tokens
+  const cloud=document.getElementById('token-cloud');
+  cloud.innerHTML='';
+  (d.attention||[]).forEach(({token,score})=>{
+    const span=document.createElement('span');
+    span.className='token';
+    span.textContent=token.startsWith('##')?token.slice(2):token;
+    const alpha=0.15+score*0.8;
+    if(isFake){span.style.borderColor=`rgba(176,48,32,${alpha})`;span.style.background=`rgba(176,48,32,${alpha*.18})`;span.style.color=score>.55?'var(--red)':'var(--ink-soft)';}
+    else{span.style.borderColor=`rgba(26,107,60,${alpha})`;span.style.background=`rgba(26,107,60,${alpha*.18})`;span.style.color=score>.55?'var(--green)':'var(--ink-soft)';}
+    span.title='Attention score: '+score;
     cloud.appendChild(span);
   });
 
   // Preview
-  if (d.extracted_text_preview) {
-    document.getElementById('preview-section').style.display = 'block';
-    document.getElementById('preview-text').textContent = d.extracted_text_preview + '…';
-  } else {
-    document.getElementById('preview-section').style.display = 'none';
-  }
+  if(d.extracted_text_preview){
+    document.getElementById('preview-block').style.display='block';
+    if(d.filename)document.getElementById('preview-file-label').textContent='File: '+d.filename;
+    document.getElementById('preview-text').textContent=d.extracted_text_preview+'…';
+  }else{document.getElementById('preview-block').style.display='none';}
 
   document.getElementById('results').classList.add('visible');
-  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function pct(v) { return (v * 100).toFixed(1) + '%'; }
-
-function confidenceZone(isFake, conf) {
-  // conf is the model's confidence in its own prediction
-  const high = conf >= 0.85;
-  const mid  = conf >= 0.60 && conf < 0.85;
-  // low = conf < 0.60
-
-  if (isFake && high) return {
-    sub: `High confidence · ${pct(conf)} certainty`,
-    nuanceDesc: 'The model is strongly classifying this as misinformation. Strong linguistic markers of fabricated content detected.',
-    p1: 'The model found strong signals of misinformation in this text. Common indicators include sensationalist language, emotional manipulation, unverified extraordinary claims, and writing patterns typical of disinformation campaigns.',
-    p2: 'Cross-check this article with multiple independent, established news sources before drawing conclusions. Check the publication, authorship, and publication date.'
-  };
-  if (isFake && mid) return {
-    sub: `Moderate confidence · ${pct(conf)} certainty`,
-    nuanceDesc: 'Leaning toward misinformation, but with notable uncertainty. The content may contain a mix of real and misleading elements.',
-    p1: 'The model leans toward classifying this as misinformation, but is not fully certain. This is common with opinion pieces, satire, hyperbolic headlines, or articles that mix factual reporting with misleading framing.',
-    p2: 'Treat this as a yellow flag rather than a red one. Look for primary sources cited in the article, check if the claims appear in credible outlets, and consider whether the text could be satire or commentary.'
-  };
-  if (isFake) return {
-    sub: `Low confidence · ${pct(conf)} certainty — treat with caution`,
-    nuanceDesc: 'Only slightly favouring fake. This is near the decision boundary — the model is essentially uncertain.',
-    p1: 'The model nudges toward misinformation but with very low confidence. This result is statistically close to the boundary and should not be treated as meaningful on its own.',
-    p2: 'At this confidence level, independent verification is especially important. The content may be legitimate but uses unconventional language, or it may be a sophisticated piece of disinformation designed to evade detection.'
-  };
-  if (!isFake && high) return {
-    sub: `High confidence · ${pct(conf)} certainty`,
-    nuanceDesc: 'The model strongly classifies this as credible journalism. Language patterns are consistent with factual reporting.',
-    p1: 'The model finds this text highly consistent with real news — factual, measured language, journalistic structure, and no strong disinformation signals.',
-    p2: 'Even credible-looking text can contain factual errors or bias. Always verify specific claims against primary sources, especially for consequential decisions.'
-  };
-  if (!isFake && mid) return {
-    sub: `Moderate confidence · ${pct(conf)} certainty`,
-    nuanceDesc: 'Leaning toward credible, but some stylistic elements introduced uncertainty.',
-    p1: 'The model leans toward credible content, though with some hesitation. This sometimes occurs with opinion journalism, advocacy writing, or articles on politically charged topics that use stronger emotional language than typical news.',
-    p2: 'The underlying facts may be accurate even if the framing is not perfectly neutral. Look for supporting citations, publication reputation, and whether the core claims are independently verifiable.'
-  };
-  return {
-    sub: `Low confidence · ${pct(conf)} certainty — inconclusive`,
-    nuanceDesc: 'Marginally favouring real, but extremely close to the boundary. The model is uncertain.',
-    p1: 'The model slightly favours this content as real, but with very low conviction. This result is near the decision boundary and should be interpreted with caution.',
-    p2: 'Inconclusive results like this often arise from highly specialised text, unusual writing styles, machine-generated content, or translated articles. Rely on source reputation and corroborating evidence.'
-  };
+  document.getElementById('new-analysis-bar').classList.add('visible');
+  setTimeout(()=>document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'}),80);
 }
 </script>
 </body>
